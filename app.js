@@ -52,7 +52,79 @@ app.post('/interactions', async function (req, res) {
         },
       });
     }
+    // "meydanoku" komutu
+if (name === 'challenge' && id) {
+    const userId = req.body.member.user.id;
+    // Kullanıcının nesne seçimi
+    const objectName = req.body.data.options[0].value;
+
+    // Oyun kimliği olarak mesaj kimliğini kullanarak aktif oyun oluşturur
+    activeGames[id] = {
+        id: userId,
+        objectName,
+    };
+
+    return res.send({
+    type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+    data: {
+        content: `Rock papers scissors challenge from <@${userId}>`,
+        components: [
+        {
+            type: MessageComponentTypes.ACTION_ROW,
+            components: [
+            {
+                type: MessageComponentTypes.BUTTON,
+                // Daha sonra kullanmak üzere oyun kimliğini ekler
+                custom_id: `accept_button_${req.body.id}`,
+                label: 'Accept',
+                style: ButtonStyleTypes.PRIMARY,
+            },
+            ],
+        },
+        ],
+    },
+    });
+}
   }
+  if (type === InteractionType.MESSAGE_COMPONENT) {
+// custom_id mesaj bileşeni gönderilirken payload'da ayarlanır
+const componentId = data.custom_id;
+
+  if (componentId.startsWith('accept_button_')) {
+    // ilişkili oyun kimliğini alır
+    const gameId = componentId.replace('accept_button_', '');
+    // İstek gövdesinde token bulunan mesajı siler
+    const endpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${req.body.message.id}`;
+    try {
+      await res.send({
+        type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+        data: {
+          // Bir yardımcı fonksiyondan göndermek için rastgele bir emoji alır
+          content: 'What is your object of choice?',
+          // Geçici bir mesaj olacağını belirtir
+          flags: InteractionResponseFlags.EPHEMERAL,
+          components: [
+            {
+              type: MessageComponentTypes.ACTION_ROW,
+              components: [
+                {
+                  type: MessageComponentTypes.STRING_SELECT,
+                  // Oyun kimliğini ekler
+                  custom_id: `select_choice_${gameId}`,
+                  options: getShuffledOptions(),
+                },
+              ],
+            },
+          ],
+        },
+      });
+      // Önceki mesajı siler
+      await DiscordRequest(endpoint, { method: 'DELETE' });
+    } catch (err) {
+      console.error('Error sending message:', err);
+    }
+  }
+}
 });
 
 app.listen(PORT, () => {
