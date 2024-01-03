@@ -123,6 +123,43 @@ const componentId = data.custom_id;
     } catch (err) {
       console.error('Error sending message:', err);
     }
+  } else if (componentId.startsWith('select_choice_')) {
+    // ilişkili oyun kimliğini alır
+    const gameId = componentId.replace('select_choice_', '');
+
+    if (activeGames[gameId]) {
+      // Yanıt veren kullanıcı için kullanıcı kimliğini ve nesne seçimini alır
+      const userId = req.body.member.user.id;
+      const objectName = data.values[0];
+      // Yardımcı fonksiyondan gelen sonucu hesaplar
+      const resultStr = getResult(activeGames[gameId], {
+        id: userId,
+        objectName,
+      });
+
+      // Oyunu bellekten kaldırır
+      delete activeGames[gameId];
+      // Mesajı istek gövdesinde token ile günceller
+      const endpoint = `webhooks/${process.env.APP_ID}/${req.body.token}/messages/${req.body.message.id}`;
+
+      try {
+        // Sonuçları gönderir
+        await res.send({
+          type: InteractionResponseType.CHANNEL_MESSAGE_WITH_SOURCE,
+          data: { content: resultStr },
+        });
+        // Geçici mesajı günceller
+        await DiscordRequest(endpoint, {
+          method: 'PATCH',
+          body: {
+            content: 'Nice choice ' + getRandomEmoji(),
+            components: []
+          }
+        });
+      } catch (err) {
+        console.error('Error sending message:', err);
+      }
+    }
   }
 }
 });
